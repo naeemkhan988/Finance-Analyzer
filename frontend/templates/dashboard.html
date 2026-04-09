@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block page_title %}<i class="fas fa-tachometer-alt"></i> Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="metrics-grid">
+        <div class="glass-card metric-card">
+            <div class="metric-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="metric-info">
+                <span class="metric-value">{{ stats.get('documents', 0) }}</span>
+                <span class="metric-label">Documents</span>
+            </div>
+        </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <div class="metric-info">
+                <span class="metric-value">{{ stats.get('vector_store', {}).get('total_chunks', 0) }}</span>
+                <span class="metric-label">Total Chunks</span>
+            </div>
+        </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="metric-info">
+                <span class="metric-value">{{ stats.get('engine', {}).get('total_queries', 0) }}</span>
+                <span class="metric-label">Total Queries</span>
+            </div>
+        </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <div class="metric-info">
+                <span class="metric-value">{{ "%.2f"|format(stats.get('engine', {}).get('avg_query_time', 0)) }}s</span>
+                <span class="metric-label">Avg Query Time</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="details-grid">
+        <div class="glass-card">
+            <div class="card-header"><h3><i class="fas fa-robot"></i> LLM Providers</h3></div>
+            <div class="providers-list">
+                {% if providers %}
+                    {% for name, info in providers.items() %}
+                    <div class="provider-item">
+                        <div class="provider-status {{ 'active' if info.get('active') else 'inactive' }}"><span class="status-dot"></span></div>
+                        <div class="provider-info"><strong>{{ info.get('name', name) }}</strong><span class="text-muted">{{ info.get('model', 'N/A') }}</span></div>
+                        <span class="tag {{ 'tag-success' if info.get('active') else 'tag-default' }}">{{ 'Active' if info.get('active') else 'Available' }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state small"><p>No provider info available</p></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <div class="card-header"><h3><i class="fas fa-database"></i> Vector Store</h3></div>
+            <div class="info-list">
+                {% set vs = stats.get('vector_store', {}) %}
+                <div class="info-row"><span>Total Vectors</span><strong>{{ vs.get('total_vectors', 0) }}</strong></div>
+                <div class="info-row"><span>Dimension</span><strong>{{ vs.get('dimension', 384) }}</strong></div>
+                <div class="info-row"><span>Collection</span><strong>{{ vs.get('collection', 'financial_docs') }}</strong></div>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <div class="card-header"><h3><i class="fas fa-info-circle"></i> System</h3></div>
+            <div class="info-list">
+                <div class="info-row"><span>Status</span><strong><span class="tag tag-success">Active</span></strong></div>
+                <div class="info-row"><span>Docs Processed</span><strong>{{ stats.get('engine', {}).get('documents_processed', 0) }}</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

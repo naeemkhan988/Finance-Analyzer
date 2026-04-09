@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Chat — {{ app_name }}{% endblock %}
+{% block page_title %}<i class="fas fa-comments"></i> Chat & Query{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-messages" id="chatMessages">
+        {% if not messages %}
+        <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-icon">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h2>Ask anything about your financial documents</h2>
+            <p class="welcome-subtitle">Upload PDFs, reports, or spreadsheets and get AI-powered analysis with source citations.</p>
+            <div class="suggestion-chips">
+                <button class="chip" onclick="askSuggestion(this)">
+                    <i class="fas fa-chart-bar"></i> What was the total revenue?
+                </button>
+                <button class="chip" onclick="askSuggestion(this)">
+                    <i class="fas fa-balance-scale"></i> Compare Q3 vs Q4 profits
+                </button>
+                <button class="chip" onclick="askSuggestion(this)">
+                    <i class="fas fa-exclamation-triangle"></i> Key risk factors?
+                </button>
+                <button class="chip" onclick="askSuggestion(this)">
+                    <i class="fas fa-percentage"></i> Gross margin trends
+                </button>
+            </div>
+        </div>
+        {% else %}
+            {% for msg in messages %}
+            <div class="message {{ msg.role }}">
+                <div class="message-avatar">
+                    {% if msg.role == 'user' %}
+                    <i class="fas fa-user"></i>
+                    {% else %}
+                    <i class="fas fa-robot"></i>
+                    {% endif %}
+                </div>
+                <div class="message-body">
+                    <div class="message-content">{{ msg.content }}</div>
+                    {% if msg.sources %}
+                    <div class="sources-section">
+                        <button class="sources-toggle" onclick="toggleSources(this)">
+                            <i class="fas fa-book"></i> {{ msg.sources|length }} Sources
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="sources-list" style="display:none;">
+                            {% for src in msg.sources %}
+                            <div class="source-item">
+                                <div class="source-doc">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <strong>{{ src.document }}</strong>
+                                    <span class="source-page">Page {{ src.page }}</span>
+                                </div>
+                                <div class="source-score">
+                                    <div class="score-bar">
+                                        <div class="score-fill" style="width: {{ (src.relevance_score * 100)|int }}%"></div>
+                                    </div>
+                                    <span>{{ (src.relevance_score * 100)|int }}%</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="typing-indicator" id="typingIndicator" style="display:none;">
+            <div class="message assistant">
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-body">
+                    <div class="typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <div class="input-wrapper">
+            <textarea id="queryInput" placeholder="Ask a question about your financial documents..." rows="1" autofocus></textarea>
+            <div class="input-actions">
+                <button class="btn btn-icon btn-sm" id="clearChat" title="Clear chat" onclick="clearChat()">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button class="btn btn-primary btn-send" id="sendBtn" onclick="sendQuery()">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send</span>
+                </button>
+            </div>
+        </div>
+        <p class="input-hint">Press <kbd>Enter</kbd> to send</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sendQuery() {
+    var input = document.getElementById('queryInput');
+    var question = input.value.trim();
+    if (!question) return;
+
+    var welcome = document.getElementById('welcomeScreen');
+    if (welcome) welcome.style.display = 'none';
+
+    appendMessage('user', question);
+    input.value = '';
+    input.style.height = 'auto';
+
+    document.getElementById('typingIndicator').style.display = 'block';
+    scrollToBottom();
+
+    fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question, k: 5, use_hybrid: true })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        document.getElementById('typingIndicator').style.display = 'none';
+        appendMessage('assistant', data.answer || 'No answer received.', data.sources, data.metadata);
+        scrollToBottom();
+    })
+    .catch(function(err) {
+        document.getElementById('typingIndicator').style.display = 'none';
+        appendMessage('assistant', 'Error: Could not reach the API. Is the backend running?');
+        scrollToBottom();
+    });
+}
+
+function appendMessage(role, content, sources, metadata) {
+    var container = document.getElementById('chatMessages');
+    var indicator = document.getElementById('typingIndicator');
+    var msgDiv = document.createElement('div');
+    msgDiv.className = 'message ' + role + ' fade-in';
+
+    var icon = role === 'user' ? 'fa-user' : 'fa-robot';
+    var sourcesHtml = '';
+    if (sources && sources.length > 0) {
+        var items = '';
+        for (var i = 0; i < sources.length; i++) {
+            var s = sources[i];
+            var pct = Math.round(s.relevance_score * 100);
+            items += '<div class="source-item"><div class="source-doc"><i class="fas fa-file-pdf"></i><strong>' + s.document + '</strong><span class="source-page">Page ' + s.page + '</span></div><div class="source-score"><div class="score-bar"><div class="score-fill" style="width:' + pct + '%"></div></div><span>' + pct + '%</span></div></div>';
+        }
+        sourcesHtml = '<div class="sources-section"><button class="sources-toggle" onclick="toggleSources(this)"><i class="fas fa-book"></i> ' + sources.length + ' Sources <i class="fas fa-chevron-down"></i></button><div class="sources-list" style="display:none;">' + items + '</div></div>';
+    }
+
+    var metaHtml = '';
+    if (metadata && metadata.provider) {
+        metaHtml = '<div class="message-meta"><span><i class="fas fa-microchip"></i> ' + metadata.provider + '</span><span><i class="fas fa-clock"></i> ' + (metadata.query_time_seconds || 0) + 's</span></div>';
+    }
+
+    var htmlContent = content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    msgDiv.innerHTML = '<div class="message-avatar"><i class="fas ' + icon + '"></i></div><div class="message-body"><div class="message-content">' + htmlContent + '</div>' + sourcesHtml + metaHtml + '</div>';
+    container.insertBefore(msgDiv, indicator);
+}
+
+function toggleSources(btn) {
+    var list = btn.nextElementSibling;
+    if (list.style.display === 'none') { list.style.display = 'block'; } else { list.style.display = 'none'; }
+}
+function askSuggestion(chip) { document.getElementById('queryInput').value = chip.textContent.trim(); sendQuery(); }
+function clearChat() { fetch('/api/clear-chat', { method: 'POST' }).then(function() { location.reload(); }); }
+function scrollToBottom() { var c = document.getElementById('chatMessages'); c.scrollTop = c.scrollHeight; }
+
+var textarea = document.getElementById('queryInput');
+textarea.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px'; });
+textarea.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); } });
+scrollToBottom();
+</script>
+{% endblock %}

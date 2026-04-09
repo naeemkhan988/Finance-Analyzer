@@ -1,0 +1,73 @@
+# ============================================
+# Development Configuration
+# ============================================
+
+app:
+  name: "Multimodal RAG Finance Analyzer"
+  version: "1.0.0"
+  debug: true
+  host: "0.0.0.0"
+  port: 5000
+
+# Document Processing
+document_processing:
+  chunk_size: 512
+  chunk_overlap: 128
+  max_file_size_mb: 50
+  allowed_extensions:
+    - pdf
+    - docx
+    - txt
+    - xlsx
+    - csv
+
+# Embedding Model
+embeddings:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  dimension: 384
+  batch_size: 64
+  normalize: true
+
+# Vector Store
+vector_store:
+  type: "faiss"
+  index_path: "./data/embeddings"
+  collection_name: "financial_docs"
+
+# Retrieval
+retrieval:
+  default_k: 5
+  vector_weight: 0.7
+  keyword_weight: 0.3
+  use_hybrid: true
+  expand_query: true
+  score_threshold: 0.0
+
+# LLM
+llm:
+  default_provider: "groq"
+  max_tokens: 2048
+  temperature: 0.3
+  retry_attempts: 3
+  providers:
+    groq:
+      model: "llama-3.3-70b-versatile"
+      max_tokens: 4096
+    gemini:
+      model: "gemini-2.5-flash"
+      max_tokens: 8192
+
+# Database
+database:
+  url: "sqlite:///./data/app.db"
+  track_modifications: false
+
+# Caching
+cache:
+  ttl: 3600
+  enable_semantic_cache: true
+
+# Logging
+logging:
+  level: "DEBUG"
+  file: "./logs/app.log"

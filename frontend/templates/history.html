@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}History — {{ app_name }}{% endblock %}
+{% block page_title %}<i class="fas fa-history"></i> History{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <div class="glass-card">
+        <div class="card-header">
+            <h3>Session: <code>{{ session_id }}</code></h3>
+            <button class="btn btn-danger-ghost btn-sm" onclick="clearHistory()">
+                <i class="fas fa-trash-alt"></i> Clear
+            </button>
+        </div>
+        <div class="history-list">
+            {% if history %}
+                {% for msg in history %}
+                <div class="history-item">
+                    <div class="history-question"><i class="fas fa-question-circle"></i><span>{{ msg.get('question', '') }}</span></div>
+                    <div class="history-answer"><i class="fas fa-robot"></i><span>{{ msg.get('answer', '')[:500] }}</span></div>
+                    <div class="history-meta"><span><i class="fas fa-clock"></i> {{ msg.get('timestamp', '') }}</span></div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-comment-slash"></i>
+                    <p>No conversation history</p>
+                    <p class="text-muted">Start chatting to see history here</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-primary"><i class="fas fa-comments"></i> Start Chatting</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function clearHistory() {
+    if (!confirm('Clear all history?')) return;
+    fetch('/api/clear-chat', { method: 'POST' }).then(function() { showToast('Cleared', 'success'); setTimeout(function() { location.reload(); }, 800); });
+}
+</script>
+{% endblock %}
