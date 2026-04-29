@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Upload — {{ app_name }}{% endblock %}
+{% block page_title %}<i class="fas fa-cloud-upload-alt"></i> Upload Documents{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="glass-card upload-zone" id="uploadZone">
+        <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <h3>Drop your financial documents here</h3>
+        <p>or click to browse files</p>
+        <p class="upload-hint"><i class="fas fa-info-circle"></i> Supports: PDF, DOCX, TXT, XLSX, CSV</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.xlsx,.csv" hidden>
+        <button class="btn btn-primary btn-lg" onclick="document.getElementById('fileInput').click()">
+            <i class="fas fa-folder-open"></i> Choose File
+        </button>
+    </div>
+
+    <div class="glass-card upload-progress" id="uploadProgress" style="display:none;">
+        <div class="progress-header">
+            <span class="file-name" id="uploadFileName"></span>
+            <span class="file-size" id="uploadFileSize"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <p class="progress-status" id="uploadStatus">Uploading...</p>
+    </div>
+
+    <div class="glass-card">
+        <div class="card-header">
+            <h3><i class="fas fa-folder"></i> Uploaded Documents</h3>
+            <span class="badge">{{ documents|length }}</span>
+        </div>
+        <div class="documents-list">
+            {% if documents %}
+                {% for doc in documents %}
+                <div class="doc-item" id="doc-{{ loop.index }}">
+                    <div class="doc-icon"><i class="fas fa-file-pdf"></i></div>
+                    <div class="doc-info">
+                        <h4>{{ doc.get('source', doc.get('filename', 'Unknown')) }}</h4>
+                        <div class="doc-meta">
+                            {% if doc.get('chunks') %}<span><i class="fas fa-puzzle-piece"></i> {{ doc.chunks }} chunks</span>{% endif %}
+                            {% if doc.get('total_pages') %}<span><i class="fas fa-file-alt"></i> {{ doc.total_pages }} pages</span>{% endif %}
+                        </div>
+                    </div>
+                    <button class="btn btn-icon btn-danger-ghost" onclick="deleteDoc('{{ doc.get('source', '') }}', 'doc-{{ loop.index }}')" title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No documents uploaded yet</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var fileInput = document.getElementById('fileInput');
+var uploadZone = document.getElementById('uploadZone');
+
+uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', function() { uploadZone.classList.remove('drag-over'); });
+uploadZone.addEventListener('drop', function(e) { e.preventDefault(); uploadZone.classList.remove('drag-over'); if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', function() { if (fileInput.files.length) uploadFile(fileInput.files[0]); });
+
+function uploadFile(file) {
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadFileName').textContent = file.name;
+    document.getElementById('uploadFileSize').textContent = (file.size / (1024*1024)).toFixed(1) + ' MB';
+    document.getElementById('uploadStatus').textContent = 'Uploading & processing...';
+    var fill = document.getElementById('progressFill');
+    fill.style.width = '0%';
+    fill.classList.add('indeterminate');
+
+    var formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/upload', { method: 'POST', body: formData })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        fill.classList.remove('indeterminate');
+        fill.style.width = '100%';
+        document.getElementById('uploadStatus').textContent = data.message || 'Done!';
+        if (data.success) { showToast('Document uploaded!', 'success'); setTimeout(function() { location.reload(); }, 1500); }
+        else { showToast(data.message || 'Failed', 'error'); }
+    })
+    .catch(function(err) { fill.classList.remove('indeterminate'); showToast('Upload failed', 'error'); });
+}
+
+function deleteDoc(filename, elemId) {
+    if (!confirm('Delete "' + filename + '"?')) return;
+    fetch('/api/documents/' + encodeURIComponent(filename), { method: 'DELETE' })
+    .then(function(res) { return res.json(); })
+    .then(function() { document.getElementById(elemId).remove(); showToast('Deleted', 'success'); });
+}
+</script>
+{% endblock %}

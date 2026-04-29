@@ -8,6 +8,7 @@ Includes: OCR support, table extraction, metadata enrichment.
 
 import os
 import re
+import csv
 import hashlib
 import logging
 from pathlib import Path
@@ -222,6 +223,208 @@ class DocumentProcessor:
             logger.error(f"Error loading text file '{file_path}': {e}")
             return []
 
+    def load_docx(self, file_path: str) -> List[Dict]:
+        """Load DOCX file using python-docx."""
+        file_name = Path(file_path).name
+        file_hash = self._compute_file_hash(file_path)
+        pages = []
+
+        try:
+            from docx import Document as DocxDocument
+
+            doc = DocxDocument(file_path)
+
+            # Extract all paragraph text
+            paragraphs = []
+            for para in doc.paragraphs:
+                text = para.text.strip()
+                if text:
+                    paragraphs.append(text)
+
+            full_text = "\n\n".join(paragraphs)
+
+            # Extract tables
+            table_texts = []
+            for table in doc.tables:
+                rows = []
+                for row in table.rows:
+                    cells = [cell.text.strip() for cell in row.cells]
+                    rows.append(" | ".join(cells))
+                if rows:
+                    table_texts.append("\n".join(rows))
+
+            if table_texts:
+                full_text += "\n\n[TABLES]\n" + "\n\n".join(table_texts)
+
+            if full_text.strip():
+                # Split into logical pages (~3000 chars each for long docs)
+                page_size = 3000
+                if len(full_text) <= page_size:
+                    page_contents = [full_text]
+                else:
+                    page_contents = []
+                    for i in range(0, len(full_text), page_size):
+                        chunk = full_text[i : i + page_size]
+                        if chunk.strip():
+                            page_contents.append(chunk.strip())
+
+                for i, content in enumerate(page_contents):
+                    pages.append(
+                        {
+                            "content": content,
+                            "metadata": {
+                                "source": file_name,
+                                "file_hash": file_hash,
+                                "page": i + 1,
+                                "total_pages": len(page_contents),
+                                "type": "docx",
+                                "has_tables": len(table_texts) > 0,
+                                "table_count": len(table_texts),
+                                "char_count": len(content),
+                                "loaded_at": datetime.utcnow().isoformat(),
+                            },
+                        }
+                    )
+
+            logger.info(
+                f"Loaded DOCX '{file_name}': {len(pages)} pages, "
+                f"{len(paragraphs)} paragraphs, {len(table_texts)} tables"
+            )
+
+        except ImportError:
+            logger.error(
+                "python-docx is not installed. "
+                "Install it with: pip install python-docx"
+            )
+        except Exception as e:
+            logger.error(f"Error loading DOCX '{file_path}': {e}")
+
+        return pages
+
+    def load_xlsx(self, file_path: str) -> List[Dict]:
+        """Load XLSX file using openpyxl."""
+        file_name = Path(file_path).name
+        file_hash = self._compute_file_hash(file_path)
+        pages = []
+
+        try:
+            from openpyxl import load_workbook
+
+            wb = load_workbook(file_path, read_only=True, data_only=True)
+
+            for sheet_idx, sheet_name in enumerate(wb.sheetnames):
+                ws = wb[sheet_name]
+                rows = []
+                headers = None
+
+                for row_idx, row in enumerate(ws.iter_rows(values_only=True)):
+                    # Convert cell values to strings, handle None
+                    cells = [
+                        str(cell) if cell is not None else ""
+                        for cell in row
+                    ]
+                    # Skip completely empty rows
+                    if not any(c.strip() for c in cells):
+                        continue
+
+                    if headers is None:
+                        headers = cells
+                        rows.append(" | ".join(cells))
+                        rows.append("-" * len(rows[0]))
+                    else:
+                        rows.append(" | ".join(cells))
+
+                content = f"[Sheet: {sheet_name}]\n" + "\n".join(rows)
+
+                if content.strip() and rows:
+                    pages.append(
+                        {
+                            "content": content,
+                            "metadata": {
+                                "source": file_name,
+                                "file_hash": file_hash,
+                                "page": sheet_idx + 1,
+                                "total_pages": len(wb.sheetnames),
+                                "type": "xlsx",
+                                "sheet_name": sheet_name,
+                                "has_tables": True,
+                                "table_count": 1,
+                                "row_count": len(rows) - 1,
+                                "char_count": len(content),
+                                "loaded_at": datetime.utcnow().isoformat(),
+                            },
+                        }
+                    )
+
+            wb.close()
+            logger.info(
+                f"Loaded XLSX '{file_name}': {len(pages)} sheets"
+            )
+
+        except ImportError:
+            logger.error(
+                "openpyxl is not installed. "
+                "Install it with: pip install openpyxl"
+            )
+        except Exception as e:
+            logger.error(f"Error loading XLSX '{file_path}': {e}")
+
+        return pages
+
+    def load_csv(self, file_path: str) -> List[Dict]:
+        """Load CSV file."""
+        file_name = Path(file_path).name
+        file_hash = self._compute_file_hash(file_path)
+        pages = []
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                reader = csv.reader(f)
+                rows = []
+                headers = None
+
+                for row_idx, row in enumerate(reader):
+                    cells = [cell.strip() for cell in row]
+                    if not any(cells):
+                        continue
+
+                    if headers is None:
+                        headers = cells
+                        rows.append(" | ".join(cells))
+                        rows.append("-" * len(rows[0]))
+                    else:
+                        rows.append(" | ".join(cells))
+
+                content = "\n".join(rows)
+
+                if content.strip():
+                    pages.append(
+                        {
+                            "content": content,
+                            "metadata": {
+                                "source": file_name,
+                                "file_hash": file_hash,
+                                "page": 1,
+                                "total_pages": 1,
+                                "type": "csv",
+                                "has_tables": True,
+                                "table_count": 1,
+                                "row_count": len(rows) - 1,
+                                "char_count": len(content),
+                                "loaded_at": datetime.utcnow().isoformat(),
+                            },
+                        }
+                    )
+
+            logger.info(
+                f"Loaded CSV '{file_name}': {len(rows) - 1 if rows else 0} rows"
+            )
+
+        except Exception as e:
+            logger.error(f"Error loading CSV '{file_path}': {e}")
+
+        return pages
+
     def load_document(self, file_path: str) -> List[Dict]:
         """Load document based on file extension."""
         ext = Path(file_path).suffix.lower()
@@ -229,6 +432,9 @@ class DocumentProcessor:
         loaders = {
             ".pdf": self.load_pdf,
             ".txt": self.load_text,
+            ".docx": self.load_docx,
+            ".xlsx": self.load_xlsx,
+            ".csv": self.load_csv,
         }
 
         loader = loaders.get(ext)

@@ -5,4 +5,4 @@ nixPkgs = ["python310"]
 cmds = ["pip install -r requirements.txt"]
 
 [start]
-cmd = "python -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+cmd = "gunicorn app:app --bind 0.0.0.0:${PORT:-5000} --timeout 120 --workers 1"
