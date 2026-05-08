@@ -1,5 +1,1 @@
-"""
-Database Module
-===============
-Vector database and metadata storage management.
-"""
+# Database module initialization

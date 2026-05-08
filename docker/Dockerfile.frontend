@@ -1,0 +1,28 @@
+# Dockerfile for Flask frontend service
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    Flask>=3.0 \
+    flask-cors>=4.0 \
+    requests>=2.31 \
+    python-dotenv>=1.0 \
+    gunicorn>=21.2
+
+# Copy frontend application
+COPY frontend/ /app/frontend/
+COPY .env* /app/
+
+# Set working directory to project root so imports work
+WORKDIR /app
+
+EXPOSE 5000
+
+CMD ["gunicorn", "frontend.app:app", "--bind", "0.0.0.0:5000", "--timeout", "120", "--workers", "2"]

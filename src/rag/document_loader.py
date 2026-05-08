@@ -452,7 +452,15 @@ class DocumentProcessor:
         - Paragraph breaks
         - Sentence boundaries
         - Word boundaries
+        - Table-aware splitting (preserves table rows intact)
         """
+        from src.rag.text_splitter import TextSplitter, SplitConfig
+
+        text_splitter = TextSplitter(SplitConfig(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+        ))
+
         chunks = []
         separators = ["\n\n", "\n", ". ", " ", ""]
 
@@ -460,7 +468,12 @@ class DocumentProcessor:
             content = page_data["content"]
             metadata = page_data["metadata"]
 
-            page_chunks = self._recursive_split(content, separators)
+            # Check for table markers — use table-aware splitting
+            has_table_content = "[TABLES]" in content or "[TABLE]" in content
+            if has_table_content:
+                page_chunks = text_splitter.split_financial_text(content)
+            else:
+                page_chunks = self._recursive_split(content, separators)
 
             for i, chunk_text in enumerate(page_chunks):
                 if not chunk_text.strip():
@@ -469,12 +482,15 @@ class DocumentProcessor:
                 # Detect financial entities in chunk
                 financial_entities = self._detect_financial_entities(chunk_text)
 
+                is_table_chunk = "[TABLE]" in chunk_text or "[TABLES]" in chunk_text
+
                 chunk_metadata = {
                     **metadata,
                     "chunk_index": i,
                     "total_chunks_in_page": len(page_chunks),
                     "financial_entities": financial_entities,
                     "word_count": len(chunk_text.split()),
+                    "is_table_chunk": is_table_chunk,
                 }
 
                 chunks.append(

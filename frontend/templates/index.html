@@ -101,7 +101,10 @@
 
 {% block scripts %}
 <script>
+var isStreaming = false;
+
 function sendQuery() {
+    if (isStreaming) return;
     var input = document.getElementById('queryInput');
     var question = input.value.trim();
     if (!question) return;
@@ -114,8 +117,157 @@ function sendQuery() {
     input.style.height = 'auto';
 
     document.getElementById('typingIndicator').style.display = 'block';
+    document.getElementById('sendBtn').disabled = true;
+    isStreaming = true;
     scrollToBottom();
 
+    // Create assistant message container for streaming
+    var container = document.getElementById('chatMessages');
+    var indicator = document.getElementById('typingIndicator');
+    var msgDiv = document.createElement('div');
+    msgDiv.className = 'message assistant fade-in';
+    msgDiv.id = 'streamingMessage';
+    msgDiv.innerHTML = '<div class="message-avatar"><i class="fas fa-robot"></i></div>' +
+        '<div class="message-body">' +
+        '<div class="message-content" id="streamContent"></div>' +
+        '<div id="streamMeta"></div>' +
+        '</div>';
+    msgDiv.style.display = 'none';
+    container.insertBefore(msgDiv, indicator);
+
+    var streamContent = document.getElementById('streamContent');
+    var streamMeta = document.getElementById('streamMeta');
+    var fullAnswer = '';
+
+    // Use fetch with ReadableStream for SSE
+    fetch('/api/query/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question, k: 5, use_hybrid: true })
+    })
+    .then(function(response) {
+        if (!response.ok) {
+            throw new Error('Stream request failed: ' + response.status);
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+
+        function read() {
+            return reader.read().then(function(result) {
+                if (result.done) {
+                    finishStream();
+                    return;
+                }
+
+                buffer += decoder.decode(result.value, { stream: true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                    if (line.startsWith('data: ')) {
+                        try {
+                            var event = JSON.parse(line.substring(6));
+                            handleStreamEvent(event, msgDiv, streamContent, streamMeta);
+                            if (event.type === 'token') {
+                                fullAnswer += event.content;
+                            }
+                        } catch (e) {
+                            // ignore parse errors
+                        }
+                    }
+                }
+                return read();
+            });
+        }
+
+        return read();
+    })
+    .catch(function(err) {
+        console.error('Stream error:', err);
+        // Fallback to regular query
+        fallbackQuery(question, msgDiv, streamContent);
+    });
+}
+
+function handleStreamEvent(event, msgDiv, streamContent, streamMeta) {
+    switch (event.type) {
+        case 'status':
+            document.getElementById('typingIndicator').style.display = 'block';
+            msgDiv.style.display = 'none';
+            // Show status in typing area if desired
+            break;
+
+        case 'cache_hit':
+            var pct = Math.round((event.similarity || 0) * 100);
+            msgDiv.style.display = 'flex';
+            document.getElementById('typingIndicator').style.display = 'none';
+            streamMeta.innerHTML = '<span class="tag tag-success" style="margin-top:8px;">' +
+                '<i class="fas fa-bolt"></i> Cache Hit (' + pct + '% match)</span>';
+            break;
+
+        case 'token':
+            msgDiv.style.display = 'flex';
+            document.getElementById('typingIndicator').style.display = 'none';
+            // Append token with basic markdown formatting
+            var formatted = event.content
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            streamContent.innerHTML += formatted;
+            scrollToBottom();
+            break;
+
+        case 'sources':
+            if (event.sources && event.sources.length > 0) {
+                var items = '';
+                for (var i = 0; i < event.sources.length; i++) {
+                    var s = event.sources[i];
+                    var pct = Math.round((s.relevance_score || 0) * 100);
+                    items += '<div class="source-item"><div class="source-doc">' +
+                        '<i class="fas fa-file-pdf"></i><strong>' + (s.document || '') +
+                        '</strong><span class="source-page">Page ' + (s.page || '?') +
+                        '</span></div><div class="source-score"><div class="score-bar">' +
+                        '<div class="score-fill" style="width:' + pct + '%"></div></div>' +
+                        '<span>' + pct + '%</span></div></div>';
+                }
+                var sourcesHtml = '<div class="sources-section" style="margin-top:10px;">' +
+                    '<button class="sources-toggle" onclick="toggleSources(this)">' +
+                    '<i class="fas fa-book"></i> ' + event.sources.length +
+                    ' Sources <i class="fas fa-chevron-down"></i></button>' +
+                    '<div class="sources-list" style="display:none;">' + items + '</div></div>';
+                var body = msgDiv.querySelector('.message-body');
+                body.insertAdjacentHTML('beforeend', sourcesHtml);
+            }
+            break;
+
+        case 'done':
+            finishStream();
+            break;
+
+        case 'error':
+            streamContent.innerHTML = '<span style="color:var(--danger);">Error: ' +
+                (event.message || 'Unknown error') + '</span>';
+            finishStream();
+            break;
+    }
+}
+
+function finishStream() {
+    document.getElementById('typingIndicator').style.display = 'none';
+    document.getElementById('sendBtn').disabled = false;
+    isStreaming = false;
+    // Remove temp IDs
+    var sm = document.getElementById('streamingMessage');
+    if (sm) sm.removeAttribute('id');
+    var sc = document.getElementById('streamContent');
+    if (sc) sc.removeAttribute('id');
+    var smeta = document.getElementById('streamMeta');
+    if (smeta) smeta.removeAttribute('id');
+    scrollToBottom();
+}
+
+function fallbackQuery(question, msgDiv, streamContent) {
     fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,14 +275,17 @@ function sendQuery() {
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-        document.getElementById('typingIndicator').style.display = 'none';
-        appendMessage('assistant', data.answer || 'No answer received.', data.sources, data.metadata);
-        scrollToBottom();
+        msgDiv.style.display = 'flex';
+        var formatted = (data.answer || 'No answer received.')
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        streamContent.innerHTML = formatted;
+        finishStream();
     })
     .catch(function(err) {
-        document.getElementById('typingIndicator').style.display = 'none';
-        appendMessage('assistant', 'Error: Could not reach the API. Is the backend running?');
-        scrollToBottom();
+        msgDiv.style.display = 'flex';
+        streamContent.innerHTML = 'Error: Could not reach the API. Is the backend running?';
+        finishStream();
     });
 }
 

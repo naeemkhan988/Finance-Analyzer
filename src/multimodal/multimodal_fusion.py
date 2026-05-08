@@ -97,8 +97,9 @@ class MultimodalFusion:
                                 )
                                 if ocr_result.get("text"):
                                     result["ocr_text"].append(ocr_result)
+                                    data_str = ", ".join(ocr_result.get("extracted_data", []))
                                     result["fused_chunks"].append({
-                                        "content": f"[CHART TEXT]\n{ocr_result['text']}",
+                                        "content": f"[CHART DATA] {data_str}\n{ocr_result['text']}",
                                         "metadata": {
                                             "source": img.get("source_pdf", ""),
                                             "page": img.get("page", 0),

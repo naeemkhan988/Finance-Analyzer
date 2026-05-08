@@ -97,8 +97,12 @@ class OCRProcessor:
                 sum(confidences) / len(confidences) if confidences else 0
             )
 
+            # Extract financial numbers
+            extracted_data = self._extract_financial_data(text)
+
             return {
                 "text": text.strip(),
+                "extracted_data": extracted_data,
                 "confidence": round(avg_confidence, 2),
                 "word_count": len(text.split()),
                 "source": Path(image_path).name,
@@ -167,6 +171,24 @@ class OCRProcessor:
             result = self.process_image(path)
             results.append(result)
         return results
+
+    def _extract_financial_data(self, text: str) -> List[str]:
+        """Extract numerical financial data from OCR text using regex."""
+        import re
+        # Pattern for currency, percentages, and large numbers
+        patterns = [
+            r"\$[\d,]+\.?\d*[MBKmbk]?",  # Currencies like $10.5M
+            r"\d+\.?\d*%",                # Percentages
+            r"(?<=\s)[\d,]+\.\d+(?=\s)", # Decimals
+            r"\b(?:20|19)\d{2}\b",       # Years
+        ]
+        
+        extracted = []
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            extracted.extend(matches)
+        
+        return list(set(extracted))
 
     def _preprocess_image(self, image):
         """

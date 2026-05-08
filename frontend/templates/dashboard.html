@@ -2,6 +2,10 @@
 {% block title %}Dashboard — {{ app_name }}{% endblock %}
 {% block page_title %}<i class="fas fa-tachometer-alt"></i> Dashboard{% endblock %}
 
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-container">
     <div class="metrics-grid">
@@ -43,7 +47,38 @@
         </div>
     </div>
 
+    <!-- Query Volume Chart -->
+    <div class="glass-card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Query Volume</h3>
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm" id="btn7d" onclick="loadAnalytics(7)" style="background:var(--primary);color:white;">7d</button>
+                <button class="btn btn-sm" id="btn30d" onclick="loadAnalytics(30)">30d</button>
+            </div>
+        </div>
+        <canvas id="queryChart" height="200"></canvas>
+    </div>
+
     <div class="details-grid">
+        <!-- Top Questions -->
+        <div class="glass-card">
+            <div class="card-header"><h3><i class="fas fa-fire"></i> Top Questions</h3></div>
+            <div class="info-list" id="topQuestions">
+                <div class="empty-state small"><p>Loading...</p></div>
+            </div>
+        </div>
+
+        <!-- Cache Stats -->
+        <div class="glass-card">
+            <div class="card-header"><h3><i class="fas fa-database"></i> Semantic Cache</h3></div>
+            <div class="info-list" id="cacheStats">
+                <div class="info-row"><span>Cached Queries</span><strong id="cachedQueries">—</strong></div>
+                <div class="info-row"><span>Total Cache Hits</span><strong id="totalHits">—</strong></div>
+                <div class="info-row"><span>Hit Rate</span><strong id="hitRate">—</strong></div>
+            </div>
+        </div>
+
+        <!-- LLM Providers -->
         <div class="glass-card">
             <div class="card-header"><h3><i class="fas fa-robot"></i> LLM Providers</h3></div>
             <div class="providers-list">
@@ -61,6 +96,7 @@
             </div>
         </div>
 
+        <!-- Vector Store -->
         <div class="glass-card">
             <div class="card-header"><h3><i class="fas fa-database"></i> Vector Store</h3></div>
             <div class="info-list">
@@ -68,16 +104,131 @@
                 <div class="info-row"><span>Total Vectors</span><strong>{{ vs.get('total_vectors', 0) }}</strong></div>
                 <div class="info-row"><span>Dimension</span><strong>{{ vs.get('dimension', 384) }}</strong></div>
                 <div class="info-row"><span>Collection</span><strong>{{ vs.get('collection', 'financial_docs') }}</strong></div>
+                <div class="info-row"><span>FAISS</span><strong><span class="tag {{ 'tag-success' if vs.get('faiss_available') else 'tag-warning' }}">{{ 'Available' if vs.get('faiss_available') else 'Fallback' }}</span></strong></div>
             </div>
         </div>
 
+        <!-- System -->
         <div class="glass-card">
             <div class="card-header"><h3><i class="fas fa-info-circle"></i> System</h3></div>
             <div class="info-list">
                 <div class="info-row"><span>Status</span><strong><span class="tag tag-success">Active</span></strong></div>
                 <div class="info-row"><span>Docs Processed</span><strong>{{ stats.get('engine', {}).get('documents_processed', 0) }}</strong></div>
+                <div class="info-row"><span>Active Sessions</span><strong>{{ stats.get('active_sessions', 0) }}</strong></div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var queryChart = null;
+
+function loadAnalytics(days) {
+    // Update button styles
+    document.getElementById('btn7d').style.background = days === 7 ? 'var(--primary)' : 'var(--bg-input)';
+    document.getElementById('btn7d').style.color = days === 7 ? 'white' : 'var(--text-secondary)';
+    document.getElementById('btn30d').style.background = days === 30 ? 'var(--primary)' : 'var(--bg-input)';
+    document.getElementById('btn30d').style.color = days === 30 ? 'white' : 'var(--text-secondary)';
+
+    fetch('/api/analytics?days=' + days)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            renderChart(data.query_volume || []);
+            renderTopQuestions(data.top_questions || []);
+            renderCacheStats(data.cache_stats || {});
+        })
+        .catch(function(err) {
+            console.error('Analytics load failed:', err);
+        });
+}
+
+function renderChart(volumeData) {
+    var canvas = document.getElementById('queryChart');
+    var ctx = canvas.getContext('2d');
+
+    if (queryChart) queryChart.destroy();
+
+    var labels = volumeData.map(function(d) { return d.date; });
+    var values = volumeData.map(function(d) { return d.count; });
+
+    // Purple gradient fill
+    var gradient = ctx.createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.4)');
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.05)');
+
+    queryChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Queries',
+                data: values,
+                borderColor: '#667eea',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#9090a8', font: { size: 11 } },
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#9090a8', font: { size: 11 }, stepSize: 1 },
+                },
+            },
+        }
+    });
+}
+
+function renderTopQuestions(questions) {
+    var container = document.getElementById('topQuestions');
+    if (!questions.length) {
+        container.innerHTML = '<div class="empty-state small"><p>No queries yet</p></div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < questions.length; i++) {
+        var q = questions[i];
+        var text = q.question.length > 60 ? q.question.substring(0, 60) + '...' : q.question;
+        html += '<div class="info-row"><span>' + text + '</span><strong>' + q.frequency + 'x</strong></div>';
+    }
+    container.innerHTML = html;
+}
+
+function renderCacheStats(stats) {
+    document.getElementById('cachedQueries').textContent = stats.cached_queries || 0;
+    document.getElementById('totalHits').textContent = stats.total_cache_hits || 0;
+    var cached = stats.cached_queries || 0;
+    var hits = stats.total_cache_hits || 0;
+    var rate = cached > 0 ? Math.round((hits / Math.max(cached, 1)) * 100) : 0;
+    document.getElementById('hitRate').innerHTML = '<span class="tag tag-success">' + rate + '%</span>';
+}
+
+// Initial load
+loadAnalytics(7);
+
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    var active = document.getElementById('btn30d').style.background.indexOf('primary') > -1 ? 30 : 7;
+    loadAnalytics(active);
+}, 30000);
+</script>
 {% endblock %}

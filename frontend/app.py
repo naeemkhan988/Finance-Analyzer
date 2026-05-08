@@ -163,6 +163,66 @@ def stats():
     return jsonify(api_client.get_stats())
 
 
+@app.route("/api/providers", methods=["GET"])
+def providers():
+    """Providers proxy."""
+    return jsonify(api_client.get_providers())
+
+
+@app.route("/api/analytics", methods=["GET"])
+def analytics():
+    """Analytics proxy."""
+    import requests as req
+    days = request.args.get("days", 7)
+    try:
+        base = api_client.base_url
+        headers = {"X-API-Key": os.getenv("ADMIN_API_KEY", "")}
+        resp = req.get(f"{base}/analytics?days={days}", headers=headers, timeout=10)
+        return jsonify(resp.json())
+    except Exception:
+        return jsonify({})
+
+
+@app.route("/api/query/stream", methods=["POST"])
+def stream_query():
+    """Proxy SSE stream from backend."""
+    import requests as req
+    from flask import Response, stream_with_context
+
+    data = request.get_json()
+    session_id = session.get("session_id", "default")
+    data["session_id"] = session_id
+
+    try:
+        base = api_client.base_url
+        headers = {"X-API-Key": os.getenv("ADMIN_API_KEY", "")}
+        resp = req.post(
+            f"{base}/query/stream",
+            json=data,
+            headers=headers,
+            stream=True,
+            timeout=120,
+        )
+
+        def generate():
+            for chunk in resp.iter_content(chunk_size=None):
+                if chunk:
+                    yield chunk
+
+        return Response(
+            stream_with_context(generate()),
+            content_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except Exception as e:
+        logger.error(f"Stream proxy failed: {e}")
+        return jsonify({"error": str(e)}), 502
+
+
 @app.route("/api/clear-chat", methods=["POST"])
 def clear_chat():
     """Clear chat history."""

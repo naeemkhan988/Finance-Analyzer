@@ -20,12 +20,24 @@ class APIClient:
         self.base_url = base_url or os.getenv(
             "API_BASE_URL", "http://localhost:8000/api"
         )
+        self.api_key = os.getenv("ADMIN_API_KEY", "")
         self.timeout = 60
+
+    def _get_headers(self) -> Dict:
+        """Get default headers including API key."""
+        headers = {}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
+        return headers
 
     def health_check(self) -> Dict:
         """Check API health."""
         try:
-            resp = requests.get(f"{self.base_url}/health", timeout=5)
+            resp = requests.get(
+                f"{self.base_url}/health", 
+                headers=self._get_headers(),
+                timeout=5
+            )
             return resp.json()
         except Exception as e:
             return {"status": "offline", "error": str(e)}
@@ -37,6 +49,7 @@ class APIClient:
             resp = requests.post(
                 f"{self.base_url}/upload",
                 files=files,
+                headers=self._get_headers(),
                 timeout=120,
             )
             return resp.json()
@@ -63,6 +76,7 @@ class APIClient:
                     "filter_source": filter_source,
                     "use_hybrid": use_hybrid,
                 },
+                headers=self._get_headers(),
                 timeout=self.timeout,
             )
             return resp.json()
@@ -73,7 +87,11 @@ class APIClient:
     def list_documents(self) -> List[Dict]:
         """List uploaded documents."""
         try:
-            resp = requests.get(f"{self.base_url}/documents", timeout=10)
+            resp = requests.get(
+                f"{self.base_url}/documents", 
+                headers=self._get_headers(),
+                timeout=10
+            )
             data = resp.json()
             return data.get("documents", [])
         except Exception:
@@ -83,7 +101,9 @@ class APIClient:
         """Delete a document."""
         try:
             resp = requests.delete(
-                f"{self.base_url}/documents/{filename}", timeout=10
+                f"{self.base_url}/documents/{filename}", 
+                headers=self._get_headers(),
+                timeout=10
             )
             return resp.json()
         except Exception as e:
@@ -93,7 +113,9 @@ class APIClient:
         """Get conversation history."""
         try:
             resp = requests.get(
-                f"{self.base_url}/history/{session_id}", timeout=10
+                f"{self.base_url}/history/{session_id}", 
+                headers=self._get_headers(),
+                timeout=10
             )
             return resp.json().get("history", [])
         except Exception:
@@ -103,7 +125,9 @@ class APIClient:
         """Clear conversation history."""
         try:
             resp = requests.delete(
-                f"{self.base_url}/history/{session_id}", timeout=10
+                f"{self.base_url}/history/{session_id}", 
+                headers=self._get_headers(),
+                timeout=10
             )
             return resp.json()
         except Exception as e:
@@ -112,7 +136,11 @@ class APIClient:
     def get_stats(self) -> Dict:
         """Get system statistics."""
         try:
-            resp = requests.get(f"{self.base_url}/stats", timeout=10)
+            resp = requests.get(
+                f"{self.base_url}/stats", 
+                headers=self._get_headers(),
+                timeout=10
+            )
             return resp.json()
         except Exception:
             return {}
@@ -120,7 +148,11 @@ class APIClient:
     def get_providers(self) -> Dict:
         """Get LLM provider information."""
         try:
-            resp = requests.get(f"{self.base_url}/providers", timeout=5)
+            resp = requests.get(
+                f"{self.base_url}/providers", 
+                headers=self._get_headers(),
+                timeout=5
+            )
             return resp.json()
         except Exception:
             return {}
