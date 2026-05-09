@@ -17,8 +17,10 @@ class APIClient:
     """Client for the Finance Analyzer REST API."""
 
     def __init__(self, base_url: str = None):
+        # In unified deployment, API_BASE_URL is set to http://127.0.0.1:$PORT/api
+        # so Flask proxies to the FastAPI routes on the same process.
         self.base_url = base_url or os.getenv(
-            "API_BASE_URL", "http://localhost:8000/api"
+            "API_BASE_URL", f"http://127.0.0.1:{os.getenv('PORT', '8000')}/api"
         )
         self.api_key = os.getenv("ADMIN_API_KEY", "")
         self.timeout = 60

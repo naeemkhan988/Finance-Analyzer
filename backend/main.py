@@ -3,7 +3,8 @@
 FastAPI Main Application
 ========================
 Entry point for the Multimodal RAG Finance Analyzer API.
-Includes API key authentication, rate limiting, and startup validation.
+Includes API key authentication, rate limiting, startup validation,
+and mounts the Flask frontend for unified single-process deployment.
 """
 
 import os
@@ -13,10 +14,12 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,10 +30,14 @@ from backend.routes.query import router as query_router
 from backend.routes.health import router as health_router
 from backend.core.config import settings
 from backend.core.dependencies import get_rag_pipeline
-from src.utils.logger import setup_logging
 
-# Setup logging
-setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
+# Setup logging — use try/except so import failures don't crash the app
+try:
+    from src.utils.logger import setup_logging
+    setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
+except Exception:
+    logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 # Auth components (initialized lazily)
@@ -65,31 +72,37 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
     logger.info("Starting Multimodal RAG Finance Analyzer API...")
-    logger.info(f"Environment: {os.getenv('FLASK_ENV', 'development')}")
+    logger.info(f"Environment: {os.getenv('FLASK_ENV', 'production')}")
+    logger.info(f"PORT: {os.getenv('PORT', 'not set')}")
 
-    # Run startup checks
+    # Ensure required directories exist
+    for d in ["./data", "./data/raw", "./data/embeddings", "./logs"]:
+        Path(d).mkdir(parents=True, exist_ok=True)
+
+    # Run startup checks (non-blocking)
     try:
         from src.utils.startup_check import run_startup_checks
         checks_ok = run_startup_checks()
         if not checks_ok:
-            logger.critical(
-                "Startup checks failed. Continuing with degraded functionality."
+            logger.warning(
+                "Startup checks had warnings. Continuing with available functionality."
             )
     except Exception as e:
-        logger.error(f"Startup checks error: {e}")
+        logger.warning(f"Startup checks skipped: {e}")
 
-    # Initialize auth components
+    # Initialize auth components (non-blocking)
     _get_api_key_manager()
     _get_rate_limiter()
 
-    # Initialize RAG pipeline
+    # Initialize RAG pipeline (non-blocking — app works in degraded mode without it)
+    app.state.rag_pipeline = None
     try:
         pipeline = get_rag_pipeline()
         app.state.rag_pipeline = pipeline
         logger.info("RAG Pipeline initialized successfully")
     except Exception as e:
-        logger.error(f"RAG Pipeline initialization failed: {e}")
-        app.state.rag_pipeline = None
+        logger.warning(f"RAG Pipeline initialization deferred: {e}")
+        logger.info("App will start without RAG — upload/query will be unavailable until pipeline loads.")
 
     yield
 
@@ -181,15 +194,35 @@ app.include_router(upload_router, prefix="/api", tags=["Documents"])
 app.include_router(query_router, prefix="/api", tags=["Query"])
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "name": "Multimodal RAG Finance Analyzer",
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs",
-    }
+# ─── Mount Flask Frontend ──────────────────────────────────────
+# Mount the Flask frontend so both API and web UI are served
+# from the same process on the same port (required for Railway).
+try:
+    from starlette.middleware.wsgi import WSGIMiddleware
+    from frontend.app import app as flask_app
+
+    # Configure the Flask API client to call back to this same server
+    port = os.getenv("PORT", "8000")
+    flask_app.config["API_BASE_URL"] = f"http://127.0.0.1:{port}/api"
+    os.environ["API_BASE_URL"] = f"http://127.0.0.1:{port}/api"
+
+    # Mount Flask at root — FastAPI /api/* routes take priority
+    # because they are registered first via include_router above.
+    app.mount("/", WSGIMiddleware(flask_app))
+    logger.info("Flask frontend mounted at / (unified deployment mode)")
+except Exception as e:
+    logger.warning(f"Flask frontend not mounted: {e}")
+    logger.info("Running in API-only mode.")
+
+    # Fallback root endpoint when Flask is unavailable
+    @app.get("/")
+    async def root():
+        return {
+            "name": "Multimodal RAG Finance Analyzer",
+            "version": "1.0.0",
+            "status": "running",
+            "docs": "/docs",
+        }
 
 
 def main():
@@ -198,7 +231,7 @@ def main():
     uvicorn.run(
         "backend.main:app",
         host=settings.HOST,
-        port=settings.PORT,
+        port=int(os.getenv("PORT", settings.PORT)),
         reload=settings.DEBUG,
     )
 

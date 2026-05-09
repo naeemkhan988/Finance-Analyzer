@@ -12,13 +12,15 @@ from backend.core.config import settings
 logger = logging.getLogger(__name__)
 
 _rag_pipeline = None
+_rag_init_attempted = False
 
 
 def get_rag_pipeline():
     """Get or create the RAG pipeline singleton."""
-    global _rag_pipeline
+    global _rag_pipeline, _rag_init_attempted
 
-    if _rag_pipeline is None:
+    if _rag_pipeline is None and not _rag_init_attempted:
+        _rag_init_attempted = True
         try:
             from src.rag.pipeline import RAGPipeline
 
@@ -32,7 +34,9 @@ def get_rag_pipeline():
             )
             logger.info("RAG Pipeline created successfully")
         except Exception as e:
-            logger.error(f"Failed to create RAG Pipeline: {e}")
-            raise
+            logger.warning(f"Failed to create RAG Pipeline: {e}")
+            logger.info("App will run in degraded mode (no RAG capabilities).")
+            _rag_pipeline = None
 
     return _rag_pipeline
+
