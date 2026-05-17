@@ -37,7 +37,7 @@
 <script>
 function clearHistory() {
     if (!confirm('Clear all history?')) return;
-    fetch('/api/clear-chat', { method: 'POST' }).then(function() { showToast('Cleared', 'success'); setTimeout(function() { location.reload(); }, 800); });
+    fetch('/web/clear-chat', { method: 'POST' }).then(function() { showToast('Cleared', 'success'); setTimeout(function() { location.reload(); }, 800); });
 }
 </script>
 {% endblock %}

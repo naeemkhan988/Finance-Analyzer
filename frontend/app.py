@@ -90,7 +90,7 @@ def history_page():
 
 
 # ─── API Proxy Routes ──────────────────────────────────────────
-@app.route("/api/upload", methods=["POST"])
+@app.route("/web/upload", methods=["POST"])
 def handle_upload():
     """Handle file upload and forward to backend API."""
     if "file" not in request.files:
@@ -104,7 +104,7 @@ def handle_upload():
     return jsonify(result)
 
 
-@app.route("/api/query", methods=["POST"])
+@app.route("/web/query", methods=["POST"])
 def handle_query():
     """Handle query and forward to backend API."""
     data = request.get_json()
@@ -137,39 +137,39 @@ def handle_query():
     return jsonify(result)
 
 
-@app.route("/api/documents", methods=["GET"])
+@app.route("/web/documents", methods=["GET"])
 def get_documents():
     """Get list of documents."""
     docs = api_client.list_documents()
     return jsonify({"documents": docs})
 
 
-@app.route("/api/documents/<filename>", methods=["DELETE"])
+@app.route("/web/documents/<filename>", methods=["DELETE"])
 def delete_document(filename):
     """Delete a document."""
     result = api_client.delete_document(filename)
     return jsonify(result)
 
 
-@app.route("/api/health", methods=["GET"])
+@app.route("/web/health", methods=["GET"])
 def health():
     """Health check proxy."""
     return jsonify(api_client.health_check())
 
 
-@app.route("/api/stats", methods=["GET"])
+@app.route("/web/stats", methods=["GET"])
 def stats():
     """Stats proxy."""
     return jsonify(api_client.get_stats())
 
 
-@app.route("/api/providers", methods=["GET"])
+@app.route("/web/providers", methods=["GET"])
 def providers():
     """Providers proxy."""
     return jsonify(api_client.get_providers())
 
 
-@app.route("/api/analytics", methods=["GET"])
+@app.route("/web/analytics", methods=["GET"])
 def analytics():
     """Analytics proxy."""
     import requests as req
@@ -183,7 +183,7 @@ def analytics():
         return jsonify({})
 
 
-@app.route("/api/query/stream", methods=["POST"])
+@app.route("/web/query/stream", methods=["POST"])
 def stream_query():
     """Proxy SSE stream from backend."""
     import requests as req
@@ -223,7 +223,7 @@ def stream_query():
         return jsonify({"error": str(e)}), 502
 
 
-@app.route("/api/clear-chat", methods=["POST"])
+@app.route("/web/clear-chat", methods=["POST"])
 def clear_chat():
     """Clear chat history."""
     session["messages"] = []

@@ -78,7 +78,7 @@ function uploadFile(file) {
     var formData = new FormData();
     formData.append('file', file);
 
-    fetch('/api/upload', { method: 'POST', body: formData })
+    fetch('/web/upload', { method: 'POST', body: formData })
     .then(function(res) { return res.json(); })
     .then(function(data) {
         fill.classList.remove('indeterminate');
@@ -92,7 +92,7 @@ function uploadFile(file) {
 
 function deleteDoc(filename, elemId) {
     if (!confirm('Delete "' + filename + '"?')) return;
-    fetch('/api/documents/' + encodeURIComponent(filename), { method: 'DELETE' })
+    fetch('/web/documents/' + encodeURIComponent(filename), { method: 'DELETE' })
     .then(function(res) { return res.json(); })
     .then(function() { document.getElementById(elemId).remove(); showToast('Deleted', 'success'); });
 }

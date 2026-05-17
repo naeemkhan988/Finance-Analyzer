@@ -131,7 +131,7 @@ function sendQuery() {
     var streamMeta = document.getElementById('streamMeta');
     var fullAnswer = '';
 
-    fetch('/api/query/stream', {
+    fetch('/web/query/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question, k: 5, use_hybrid: true })
@@ -251,7 +251,7 @@ function finishStream() {
 }
 
 function fallbackQuery(question, msgDiv, streamContent) {
-    fetch('/api/query', {
+    fetch('/web/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question, k: 5, use_hybrid: true })
@@ -309,7 +309,7 @@ function toggleSources(btn) {
     if (list.style.display === 'none') { list.style.display = 'flex'; } else { list.style.display = 'none'; }
 }
 function askSuggestion(chip) { document.getElementById('queryInput').value = chip.textContent.trim(); sendQuery(); }
-function clearChat() { fetch('/api/clear-chat', { method: 'POST' }).then(function() { location.reload(); }); }
+function clearChat() { fetch('/web/clear-chat', { method: 'POST' }).then(function() { location.reload(); }); }
 function scrollToBottom() { var c = document.getElementById('chatMessages'); c.scrollTop = c.scrollHeight; }
 
 var textarea = document.getElementById('queryInput');

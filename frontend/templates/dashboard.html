@@ -130,7 +130,7 @@ function loadAnalytics(days) {
     document.getElementById('btn7d').className = days === 7 ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
     document.getElementById('btn30d').className = days === 30 ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
 
-    fetch('/api/analytics?days=' + days)
+    fetch('/web/analytics?days=' + days)
         .then(function(res) { return res.json(); })
         .then(function(data) {
             renderChart(data.query_volume || []);

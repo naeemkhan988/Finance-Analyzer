@@ -77,7 +77,7 @@ function checkApiHealth() {
     const indicator = document.getElementById('api-status');
     if (!indicator) return;
 
-    fetch('/api/health')
+    fetch('/web/health')
         .then(res => res.json())
         .then(() => {
             indicator.className = 'status-indicator online';
@@ -89,7 +89,7 @@ function checkApiHealth() {
         });
 
     setInterval(() => {
-        fetch('/api/health')
+        fetch('/web/health')
             .then(res => {
                 if (res.ok) {
                     indicator.className = 'status-indicator online';
@@ -135,7 +135,7 @@ function showToast(message, type) {
 
 /* ─── New Chat ──────────────────────────────────────────── */
 function newChat() {
-    fetch('/api/clear-chat', { method: 'POST' })
+    fetch('/web/clear-chat', { method: 'POST' })
         .then(function() {
             window.location.href = '/';
         })
