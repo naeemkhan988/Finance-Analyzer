@@ -1,53 +1,61 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI-powered financial document analysis using Multimodal RAG">
     <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body>
-    <div class="bg-animation">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-    </div>
 
+<body>
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo">
                 <i class="fas fa-chart-line logo-icon"></i>
                 <span class="logo-text">FinanceRAG</span>
             </div>
-            <span class="version-badge">v1.0</span>
+        </div>
+        <div class="sidebar-new-chat">
+            <button class="btn-new-chat" id="newChatBtn" title="Start a new conversation"
+                onclick="fetch('/api/clear-chat',{method:'POST'}).then(function(){window.location='/'}).catch(function(){window.location='/'})">
+                <i class="fas fa-plus"></i>
+                <span>New Chat</span>
+            </button>
         </div>
         <ul class="nav-menu">
             <li class="nav-item">
-                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" id="nav-chat">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+                    id="nav-chat">
                     <i class="fas fa-comments"></i>
-                    <span>Chat & Query</span>
+                    <span>Chat</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ url_for('upload_page') }}" class="nav-link {% if request.endpoint == 'upload_page' %}active{% endif %}" id="nav-upload">
+                <a href="{{ url_for('upload_page') }}"
+                    class="nav-link {% if request.endpoint == 'upload_page' %}active{% endif %}" id="nav-upload">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Upload Docs</span>
+                    <span>Upload</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ url_for('dashboard_page') }}" class="nav-link {% if request.endpoint == 'dashboard_page' %}active{% endif %}" id="nav-dashboard">
+                <a href="{{ url_for('dashboard_page') }}"
+                    class="nav-link {% if request.endpoint == 'dashboard_page' %}active{% endif %}" id="nav-dashboard">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{ url_for('history_page') }}" class="nav-link {% if request.endpoint == 'history_page' %}active{% endif %}" id="nav-history">
+                <a href="{{ url_for('history_page') }}"
+                    class="nav-link {% if request.endpoint == 'history_page' %}active{% endif %}" id="nav-history">
                     <i class="fas fa-history"></i>
                     <span>History</span>
                 </a>
@@ -68,12 +76,12 @@
             </button>
             <h1 class="page-title">{% block page_title %}{{ app_name }}{% endblock %}</h1>
             <div class="topbar-actions">
-                <button class="btn btn-icon" id="themeToggle" title="Toggle theme">
+                <button class="btn-icon" id="themeToggle" title="Toggle theme">
                     <i class="fas fa-moon"></i>
                 </button>
             </div>
         </header>
-        <div class="content-area">
+        <div class="content-area {% block content_class %}{% endblock %}">
             {% if error %}
             <div class="alert alert-error">
                 <i class="fas fa-exclamation-circle"></i>
@@ -87,4 +95,5 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

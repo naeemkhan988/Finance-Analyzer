@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   Main JavaScript — Finance Analyzer
+   Main JavaScript — Finance Analyzer (Claude-Minimal)
    ═══════════════════════════════════════════════════════════ */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,20 +12,46 @@ document.addEventListener('DOMContentLoaded', () => {
 function initSidebar() {
     const toggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
-    if (toggle && sidebar) {
-        toggle.addEventListener('click', () => { sidebar.classList.toggle('open'); });
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
-                sidebar.classList.remove('open');
-            }
-        });
+    if (!toggle || !sidebar) return;
+
+    // Create overlay element for mobile
+    let overlay = document.querySelector('.sidebar-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
     }
+
+    function openSidebar() {
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+    }
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    }
+
+    toggle.addEventListener('click', () => {
+        if (sidebar.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+
+    overlay.addEventListener('click', closeSidebar);
+
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
+            closeSidebar();
+        }
+    });
 }
 
 /* ─── Theme Toggle ──────────────────────────────────────── */
 function initTheme() {
     const btn = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('theme') || 'dark';
+    const saved = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', saved);
     updateThemeIcon(saved);
     if (btn) {
@@ -55,11 +81,11 @@ function checkApiHealth() {
         .then(res => res.json())
         .then(() => {
             indicator.className = 'status-indicator online';
-            indicator.querySelector('.status-text').textContent = 'API Online';
+            indicator.querySelector('.status-text').textContent = 'Model connected';
         })
         .catch(() => {
             indicator.className = 'status-indicator offline';
-            indicator.querySelector('.status-text').textContent = 'API Offline';
+            indicator.querySelector('.status-text').textContent = 'Model offline';
         });
 
     setInterval(() => {
@@ -67,12 +93,12 @@ function checkApiHealth() {
             .then(res => {
                 if (res.ok) {
                     indicator.className = 'status-indicator online';
-                    indicator.querySelector('.status-text').textContent = 'API Online';
+                    indicator.querySelector('.status-text').textContent = 'Model connected';
                 } else { throw new Error('Not OK'); }
             })
             .catch(() => {
                 indicator.className = 'status-indicator offline';
-                indicator.querySelector('.status-text').textContent = 'API Offline';
+                indicator.querySelector('.status-text').textContent = 'Model offline';
             });
     }, 30000);
 }
@@ -101,8 +127,20 @@ function showToast(message, type) {
 
     setTimeout(function() {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(function() { toast.remove(); }, 300);
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.2s ease';
+        setTimeout(function() { toast.remove(); }, 200);
     }, 4000);
+}
+
+/* ─── New Chat ──────────────────────────────────────────── */
+function newChat() {
+    fetch('/api/clear-chat', { method: 'POST' })
+        .then(function() {
+            window.location.href = '/';
+        })
+        .catch(function() {
+            // Even if clear fails, navigate to chat
+            window.location.href = '/';
+        });
 }

@@ -1,21 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Upload — {{ app_name }}{% endblock %}
-{% block page_title %}<i class="fas fa-cloud-upload-alt"></i> Upload Documents{% endblock %}
+{% block page_title %}<i class="fas fa-cloud-upload-alt"></i> Upload{% endblock %}
 
 {% block content %}
 <div class="upload-container">
-    <div class="glass-card upload-zone" id="uploadZone">
+    <div class="upload-zone" id="uploadZone">
         <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-        <h3>Drop your financial documents here</h3>
-        <p>or click to browse files</p>
-        <p class="upload-hint"><i class="fas fa-info-circle"></i> Supports: PDF, DOCX, TXT, XLSX, CSV</p>
+        <h3>Drop files here</h3>
+        <p>PDF, DOCX, XLSX, CSV, TXT &middot; Max 50MB</p>
         <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.xlsx,.csv" hidden>
-        <button class="btn btn-primary btn-lg" onclick="document.getElementById('fileInput').click()">
-            <i class="fas fa-folder-open"></i> Choose File
+        <button class="btn btn-outline" style="margin-top:16px;" onclick="document.getElementById('fileInput').click()">
+            Choose file
         </button>
     </div>
 
-    <div class="glass-card upload-progress" id="uploadProgress" style="display:none;">
+    <div class="upload-progress" id="uploadProgress" style="display:none;">
         <div class="progress-header">
             <span class="file-name" id="uploadFileName"></span>
             <span class="file-size" id="uploadFileSize"></span>
@@ -24,7 +23,7 @@
         <p class="progress-status" id="uploadStatus">Uploading...</p>
     </div>
 
-    <div class="glass-card">
+    <div class="surface-card">
         <div class="card-header">
             <h3><i class="fas fa-folder"></i> Uploaded Documents</h3>
             <span class="badge">{{ documents|length }}</span>
@@ -33,7 +32,7 @@
             {% if documents %}
                 {% for doc in documents %}
                 <div class="doc-item" id="doc-{{ loop.index }}">
-                    <div class="doc-icon"><i class="fas fa-file-pdf"></i></div>
+                    <div class="doc-icon"><i class="fas fa-file-alt"></i></div>
                     <div class="doc-info">
                         <h4>{{ doc.get('source', doc.get('filename', 'Unknown')) }}</h4>
                         <div class="doc-meta">
@@ -41,7 +40,7 @@
                             {% if doc.get('total_pages') %}<span><i class="fas fa-file-alt"></i> {{ doc.total_pages }} pages</span>{% endif %}
                         </div>
                     </div>
-                    <button class="btn btn-icon btn-danger-ghost" onclick="deleteDoc('{{ doc.get('source', '') }}', 'doc-{{ loop.index }}')" title="Delete">
+                    <button class="btn-icon btn-delete" onclick="deleteDoc('{{ doc.get('source', '') }}', 'doc-{{ loop.index }}')" title="Delete">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Chat — {{ app_name }}{% endblock %}
-{% block page_title %}<i class="fas fa-comments"></i> Chat & Query{% endblock %}
+{% block page_title %}<i class="fas fa-comments"></i> Chat{% endblock %}
+{% block content_class %}chat-page{% endblock %}
 
 {% block content %}
 <div class="chat-container">
@@ -8,22 +9,22 @@
         {% if not messages %}
         <div class="welcome-screen" id="welcomeScreen">
             <div class="welcome-icon">
-                <i class="fas fa-brain"></i>
+                <i class="fas fa-chart-bar"></i>
             </div>
-            <h2>Ask anything about your financial documents</h2>
-            <p class="welcome-subtitle">Upload PDFs, reports, or spreadsheets and get AI-powered analysis with source citations.</p>
+            <h2>Ask anything about your documents</h2>
+            <p class="welcome-subtitle">Upload financial reports, spreadsheets, or PDFs and get AI-powered analysis with source citations.</p>
             <div class="suggestion-chips">
                 <button class="chip" onclick="askSuggestion(this)">
-                    <i class="fas fa-chart-bar"></i> What was the total revenue?
+                    <i class="fas fa-chart-bar"></i> Total revenue?
                 </button>
                 <button class="chip" onclick="askSuggestion(this)">
-                    <i class="fas fa-balance-scale"></i> Compare Q3 vs Q4 profits
+                    <i class="fas fa-balance-scale"></i> Q3 vs Q4 comparison
                 </button>
                 <button class="chip" onclick="askSuggestion(this)">
-                    <i class="fas fa-exclamation-triangle"></i> Key risk factors?
+                    <i class="fas fa-exclamation-triangle"></i> Key risk factors
                 </button>
                 <button class="chip" onclick="askSuggestion(this)">
-                    <i class="fas fa-percentage"></i> Gross margin trends
+                    <i class="fas fa-percentage"></i> Gross margin trend
                 </button>
             </div>
         </div>
@@ -32,9 +33,9 @@
             <div class="message {{ msg.role }}">
                 <div class="message-avatar">
                     {% if msg.role == 'user' %}
-                    <i class="fas fa-user"></i>
+                    <span class="avatar-text">You</span>
                     {% else %}
-                    <i class="fas fa-robot"></i>
+                    <i class="fas fa-chart-line"></i>
                     {% endif %}
                 </div>
                 <div class="message-body">
@@ -42,7 +43,7 @@
                     {% if msg.sources %}
                     <div class="sources-section">
                         <button class="sources-toggle" onclick="toggleSources(this)">
-                            <i class="fas fa-book"></i> {{ msg.sources|length }} Sources
+                            <i class="fas fa-file-alt"></i> {{ msg.sources|length }} Sources
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div class="sources-list" style="display:none;">
@@ -51,13 +52,8 @@
                                 <div class="source-doc">
                                     <i class="fas fa-file-pdf"></i>
                                     <strong>{{ src.document }}</strong>
-                                    <span class="source-page">Page {{ src.page }}</span>
-                                </div>
-                                <div class="source-score">
-                                    <div class="score-bar">
-                                        <div class="score-fill" style="width: {{ (src.relevance_score * 100)|int }}%"></div>
-                                    </div>
-                                    <span>{{ (src.relevance_score * 100)|int }}%</span>
+                                    <span class="source-page">p.{{ src.page }}</span>
+                                    <span>&middot; {{ (src.relevance_score * 100)|int }}%</span>
                                 </div>
                             </div>
                             {% endfor %}
@@ -71,7 +67,7 @@
 
         <div class="typing-indicator" id="typingIndicator" style="display:none;">
             <div class="message assistant">
-                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-avatar"><i class="fas fa-chart-line"></i></div>
                 <div class="message-body">
                     <div class="typing-dots">
                         <span></span><span></span><span></span>
@@ -85,16 +81,13 @@
         <div class="input-wrapper">
             <textarea id="queryInput" placeholder="Ask a question about your financial documents..." rows="1" autofocus></textarea>
             <div class="input-actions">
-                <button class="btn btn-icon btn-sm" id="clearChat" title="Clear chat" onclick="clearChat()">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
+                <button class="btn-attach" title="Attach file"><i class="fas fa-paperclip"></i></button>
                 <button class="btn btn-primary btn-send" id="sendBtn" onclick="sendQuery()">
-                    <i class="fas fa-paper-plane"></i>
-                    <span>Send</span>
+                    <i class="fas fa-arrow-up"></i>
                 </button>
             </div>
         </div>
-        <p class="input-hint">Press <kbd>Enter</kbd> to send</p>
+        <p class="input-hint">Enter to send &middot; Shift+Enter for new line</p>
     </div>
 </div>
 {% endblock %}
@@ -121,13 +114,12 @@ function sendQuery() {
     isStreaming = true;
     scrollToBottom();
 
-    // Create assistant message container for streaming
     var container = document.getElementById('chatMessages');
     var indicator = document.getElementById('typingIndicator');
     var msgDiv = document.createElement('div');
     msgDiv.className = 'message assistant fade-in';
     msgDiv.id = 'streamingMessage';
-    msgDiv.innerHTML = '<div class="message-avatar"><i class="fas fa-robot"></i></div>' +
+    msgDiv.innerHTML = '<div class="message-avatar"><i class="fas fa-chart-line"></i></div>' +
         '<div class="message-body">' +
         '<div class="message-content" id="streamContent"></div>' +
         '<div id="streamMeta"></div>' +
@@ -139,7 +131,6 @@ function sendQuery() {
     var streamMeta = document.getElementById('streamMeta');
     var fullAnswer = '';
 
-    // Use fetch with ReadableStream for SSE
     fetch('/api/query/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,7 +153,7 @@ function sendQuery() {
 
                 buffer += decoder.decode(result.value, { stream: true });
                 var lines = buffer.split('\n');
-                buffer = lines.pop(); // Keep incomplete line in buffer
+                buffer = lines.pop();
 
                 for (var i = 0; i < lines.length; i++) {
                     var line = lines[i].trim();
@@ -173,9 +164,7 @@ function sendQuery() {
                             if (event.type === 'token') {
                                 fullAnswer += event.content;
                             }
-                        } catch (e) {
-                            // ignore parse errors
-                        }
+                        } catch (e) {}
                     }
                 }
                 return read();
@@ -186,7 +175,6 @@ function sendQuery() {
     })
     .catch(function(err) {
         console.error('Stream error:', err);
-        // Fallback to regular query
         fallbackQuery(question, msgDiv, streamContent);
     });
 }
@@ -196,7 +184,6 @@ function handleStreamEvent(event, msgDiv, streamContent, streamMeta) {
         case 'status':
             document.getElementById('typingIndicator').style.display = 'block';
             msgDiv.style.display = 'none';
-            // Show status in typing area if desired
             break;
 
         case 'cache_hit':
@@ -210,7 +197,6 @@ function handleStreamEvent(event, msgDiv, streamContent, streamMeta) {
         case 'token':
             msgDiv.style.display = 'flex';
             document.getElementById('typingIndicator').style.display = 'none';
-            // Append token with basic markdown formatting
             var formatted = event.content
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -220,22 +206,20 @@ function handleStreamEvent(event, msgDiv, streamContent, streamMeta) {
 
         case 'sources':
             if (event.sources && event.sources.length > 0) {
-                var items = '';
+                var pills = '';
                 for (var i = 0; i < event.sources.length; i++) {
                     var s = event.sources[i];
                     var pct = Math.round((s.relevance_score || 0) * 100);
-                    items += '<div class="source-item"><div class="source-doc">' +
-                        '<i class="fas fa-file-pdf"></i><strong>' + (s.document || '') +
-                        '</strong><span class="source-page">Page ' + (s.page || '?') +
-                        '</span></div><div class="source-score"><div class="score-bar">' +
-                        '<div class="score-fill" style="width:' + pct + '%"></div></div>' +
-                        '<span>' + pct + '%</span></div></div>';
+                    pills += '<div class="source-item"><div class="source-doc">' +
+                        '<i class="fas fa-file-alt"></i> ' + (s.document || '') +
+                        ' <span class="source-page">&middot; p.' + (s.page || '?') +
+                        '</span> <span>&middot; ' + pct + '%</span></div></div>';
                 }
                 var sourcesHtml = '<div class="sources-section" style="margin-top:10px;">' +
                     '<button class="sources-toggle" onclick="toggleSources(this)">' +
-                    '<i class="fas fa-book"></i> ' + event.sources.length +
+                    '<i class="fas fa-file-alt"></i> ' + event.sources.length +
                     ' Sources <i class="fas fa-chevron-down"></i></button>' +
-                    '<div class="sources-list" style="display:none;">' + items + '</div></div>';
+                    '<div class="sources-list" style="display:none;">' + pills + '</div></div>';
                 var body = msgDiv.querySelector('.message-body');
                 body.insertAdjacentHTML('beforeend', sourcesHtml);
             }
@@ -257,7 +241,6 @@ function finishStream() {
     document.getElementById('typingIndicator').style.display = 'none';
     document.getElementById('sendBtn').disabled = false;
     isStreaming = false;
-    // Remove temp IDs
     var sm = document.getElementById('streamingMessage');
     if (sm) sm.removeAttribute('id');
     var sc = document.getElementById('streamContent');
@@ -295,39 +278,42 @@ function appendMessage(role, content, sources, metadata) {
     var msgDiv = document.createElement('div');
     msgDiv.className = 'message ' + role + ' fade-in';
 
-    var icon = role === 'user' ? 'fa-user' : 'fa-robot';
+    var avatarHtml = role === 'user'
+        ? '<div class="message-avatar"><span class="avatar-text">You</span></div>'
+        : '<div class="message-avatar"><i class="fas fa-chart-line"></i></div>';
+
     var sourcesHtml = '';
     if (sources && sources.length > 0) {
         var items = '';
         for (var i = 0; i < sources.length; i++) {
             var s = sources[i];
             var pct = Math.round(s.relevance_score * 100);
-            items += '<div class="source-item"><div class="source-doc"><i class="fas fa-file-pdf"></i><strong>' + s.document + '</strong><span class="source-page">Page ' + s.page + '</span></div><div class="source-score"><div class="score-bar"><div class="score-fill" style="width:' + pct + '%"></div></div><span>' + pct + '%</span></div></div>';
+            items += '<div class="source-item"><div class="source-doc"><i class="fas fa-file-alt"></i> ' + s.document + ' <span class="source-page">&middot; p.' + s.page + '</span> <span>&middot; ' + pct + '%</span></div></div>';
         }
-        sourcesHtml = '<div class="sources-section"><button class="sources-toggle" onclick="toggleSources(this)"><i class="fas fa-book"></i> ' + sources.length + ' Sources <i class="fas fa-chevron-down"></i></button><div class="sources-list" style="display:none;">' + items + '</div></div>';
+        sourcesHtml = '<div class="sources-section"><button class="sources-toggle" onclick="toggleSources(this)"><i class="fas fa-file-alt"></i> ' + sources.length + ' Sources <i class="fas fa-chevron-down"></i></button><div class="sources-list" style="display:none;">' + items + '</div></div>';
     }
 
     var metaHtml = '';
     if (metadata && metadata.provider) {
-        metaHtml = '<div class="message-meta"><span><i class="fas fa-microchip"></i> ' + metadata.provider + '</span><span><i class="fas fa-clock"></i> ' + (metadata.query_time_seconds || 0) + 's</span></div>';
+        metaHtml = '<div class="message-meta"><span>' + metadata.provider + '</span><span>' + (metadata.query_time_seconds || 0) + 's</span></div>';
     }
 
     var htmlContent = content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-    msgDiv.innerHTML = '<div class="message-avatar"><i class="fas ' + icon + '"></i></div><div class="message-body"><div class="message-content">' + htmlContent + '</div>' + sourcesHtml + metaHtml + '</div>';
+    msgDiv.innerHTML = avatarHtml + '<div class="message-body"><div class="message-content">' + htmlContent + '</div>' + sourcesHtml + metaHtml + '</div>';
     container.insertBefore(msgDiv, indicator);
 }
 
 function toggleSources(btn) {
     var list = btn.nextElementSibling;
-    if (list.style.display === 'none') { list.style.display = 'block'; } else { list.style.display = 'none'; }
+    if (list.style.display === 'none') { list.style.display = 'flex'; } else { list.style.display = 'none'; }
 }
 function askSuggestion(chip) { document.getElementById('queryInput').value = chip.textContent.trim(); sendQuery(); }
 function clearChat() { fetch('/api/clear-chat', { method: 'POST' }).then(function() { location.reload(); }); }
 function scrollToBottom() { var c = document.getElementById('chatMessages'); c.scrollTop = c.scrollHeight; }
 
 var textarea = document.getElementById('queryInput');
-textarea.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 150) + 'px'; });
+textarea.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; });
 textarea.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuery(); } });
 scrollToBottom();
 </script>

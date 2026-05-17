@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="history-container">
-    <div class="glass-card">
+    <div class="surface-card">
         <div class="card-header">
             <h3>Session: <code>{{ session_id }}</code></h3>
-            <button class="btn btn-danger-ghost btn-sm" onclick="clearHistory()">
+            <button class="btn btn-sm btn-danger-ghost" onclick="clearHistory()">
                 <i class="fas fa-trash-alt"></i> Clear
             </button>
         </div>
@@ -23,7 +23,7 @@
             {% else %}
                 <div class="empty-state">
                     <i class="fas fa-comment-slash"></i>
-                    <p>No conversation history</p>
+                    <p>No conversations yet</p>
                     <p class="text-muted">Start chatting to see history here</p>
                     <a href="{{ url_for('index') }}" class="btn btn-primary"><i class="fas fa-comments"></i> Start Chatting</a>
                 </div>

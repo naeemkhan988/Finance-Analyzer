@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — {{ app_name }}{% endblock %}
 {% block page_title %}<i class="fas fa-tachometer-alt"></i> Dashboard{% endblock %}
+{% block content_class %}wide{% endblock %}
 
 {% block head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -9,51 +10,51 @@
 {% block content %}
 <div class="dashboard-container">
     <div class="metrics-grid">
-        <div class="glass-card metric-card">
-            <div class="metric-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+        <div class="surface-card metric-card">
+            <div class="metric-icon">
                 <i class="fas fa-file-alt"></i>
             </div>
             <div class="metric-info">
-                <span class="metric-value">{{ stats.get('documents', 0) }}</span>
                 <span class="metric-label">Documents</span>
+                <span class="metric-value">{{ stats.get('documents', 0) }}</span>
             </div>
         </div>
-        <div class="glass-card metric-card">
-            <div class="metric-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+        <div class="surface-card metric-card">
+            <div class="metric-icon">
                 <i class="fas fa-puzzle-piece"></i>
             </div>
             <div class="metric-info">
-                <span class="metric-value">{{ stats.get('vector_store', {}).get('total_chunks', 0) }}</span>
                 <span class="metric-label">Total Chunks</span>
+                <span class="metric-value">{{ stats.get('vector_store', {}).get('total_chunks', 0) }}</span>
             </div>
         </div>
-        <div class="glass-card metric-card">
-            <div class="metric-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+        <div class="surface-card metric-card">
+            <div class="metric-icon">
                 <i class="fas fa-search"></i>
             </div>
             <div class="metric-info">
+                <span class="metric-label">Queries</span>
                 <span class="metric-value">{{ stats.get('engine', {}).get('total_queries', 0) }}</span>
-                <span class="metric-label">Total Queries</span>
             </div>
         </div>
-        <div class="glass-card metric-card">
-            <div class="metric-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
+        <div class="surface-card metric-card">
+            <div class="metric-icon">
                 <i class="fas fa-bolt"></i>
             </div>
             <div class="metric-info">
+                <span class="metric-label">Avg Response Time</span>
                 <span class="metric-value">{{ "%.2f"|format(stats.get('engine', {}).get('avg_query_time', 0)) }}s</span>
-                <span class="metric-label">Avg Query Time</span>
             </div>
         </div>
     </div>
 
     <!-- Query Volume Chart -->
-    <div class="glass-card">
+    <div class="surface-card">
         <div class="card-header">
             <h3><i class="fas fa-chart-line"></i> Query Volume</h3>
             <div style="display:flex;gap:6px;">
-                <button class="btn btn-sm" id="btn7d" onclick="loadAnalytics(7)" style="background:var(--primary);color:white;">7d</button>
-                <button class="btn btn-sm" id="btn30d" onclick="loadAnalytics(30)">30d</button>
+                <button class="btn btn-sm btn-primary" id="btn7d" onclick="loadAnalytics(7)">7d</button>
+                <button class="btn btn-sm btn-secondary" id="btn30d" onclick="loadAnalytics(30)">30d</button>
             </div>
         </div>
         <canvas id="queryChart" height="200"></canvas>
@@ -61,7 +62,7 @@
 
     <div class="details-grid">
         <!-- Top Questions -->
-        <div class="glass-card">
+        <div class="surface-card">
             <div class="card-header"><h3><i class="fas fa-fire"></i> Top Questions</h3></div>
             <div class="info-list" id="topQuestions">
                 <div class="empty-state small"><p>Loading...</p></div>
@@ -69,17 +70,17 @@
         </div>
 
         <!-- Cache Stats -->
-        <div class="glass-card">
+        <div class="surface-card">
             <div class="card-header"><h3><i class="fas fa-database"></i> Semantic Cache</h3></div>
             <div class="info-list" id="cacheStats">
-                <div class="info-row"><span>Cached Queries</span><strong id="cachedQueries">—</strong></div>
-                <div class="info-row"><span>Total Cache Hits</span><strong id="totalHits">—</strong></div>
-                <div class="info-row"><span>Hit Rate</span><strong id="hitRate">—</strong></div>
+                <div class="info-row"><span>Cached Queries</span><strong id="cachedQueries">&mdash;</strong></div>
+                <div class="info-row"><span>Total Cache Hits</span><strong id="totalHits">&mdash;</strong></div>
+                <div class="info-row"><span>Hit Rate</span><strong id="hitRate">&mdash;</strong></div>
             </div>
         </div>
 
         <!-- LLM Providers -->
-        <div class="glass-card">
+        <div class="surface-card">
             <div class="card-header"><h3><i class="fas fa-robot"></i> LLM Providers</h3></div>
             <div class="providers-list">
                 {% if providers %}
@@ -97,7 +98,7 @@
         </div>
 
         <!-- Vector Store -->
-        <div class="glass-card">
+        <div class="surface-card">
             <div class="card-header"><h3><i class="fas fa-database"></i> Vector Store</h3></div>
             <div class="info-list">
                 {% set vs = stats.get('vector_store', {}) %}
@@ -109,7 +110,7 @@
         </div>
 
         <!-- System -->
-        <div class="glass-card">
+        <div class="surface-card">
             <div class="card-header"><h3><i class="fas fa-info-circle"></i> System</h3></div>
             <div class="info-list">
                 <div class="info-row"><span>Status</span><strong><span class="tag tag-success">Active</span></strong></div>
@@ -126,11 +127,8 @@
 var queryChart = null;
 
 function loadAnalytics(days) {
-    // Update button styles
-    document.getElementById('btn7d').style.background = days === 7 ? 'var(--primary)' : 'var(--bg-input)';
-    document.getElementById('btn7d').style.color = days === 7 ? 'white' : 'var(--text-secondary)';
-    document.getElementById('btn30d').style.background = days === 30 ? 'var(--primary)' : 'var(--bg-input)';
-    document.getElementById('btn30d').style.color = days === 30 ? 'white' : 'var(--text-secondary)';
+    document.getElementById('btn7d').className = days === 7 ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+    document.getElementById('btn30d').className = days === 30 ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
 
     fetch('/api/analytics?days=' + days)
         .then(function(res) { return res.json(); })
@@ -153,10 +151,14 @@ function renderChart(volumeData) {
     var labels = volumeData.map(function(d) { return d.date; });
     var values = volumeData.map(function(d) { return d.count; });
 
-    // Purple gradient fill
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var accentColor = isDark ? '#7c6ef0' : '#5a4fcf';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    var tickColor = isDark ? '#666660' : '#999993';
+
     var gradient = ctx.createLinearGradient(0, 0, 0, 200);
-    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.4)');
-    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.05)');
+    gradient.addColorStop(0, isDark ? 'rgba(124,110,240,0.2)' : 'rgba(90,79,207,0.15)');
+    gradient.addColorStop(1, 'rgba(90,79,207,0.01)');
 
     queryChart = new Chart(ctx, {
         type: 'line',
@@ -165,33 +167,31 @@ function renderChart(volumeData) {
             datasets: [{
                 label: 'Queries',
                 data: values,
-                borderColor: '#667eea',
+                borderColor: accentColor,
                 backgroundColor: gradient,
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointBackgroundColor: '#667eea',
-                pointBorderColor: '#fff',
+                pointBackgroundColor: accentColor,
+                pointBorderColor: isDark ? '#1c1c1c' : '#ffffff',
                 pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                pointRadius: 3,
+                pointHoverRadius: 5,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-            },
+            plugins: { legend: { display: false } },
             scales: {
                 x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9090a8', font: { size: 11 } },
+                    grid: { color: gridColor },
+                    ticks: { color: tickColor, font: { size: 11, family: 'Inter' } },
                 },
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#9090a8', font: { size: 11 }, stepSize: 1 },
+                    grid: { color: gridColor },
+                    ticks: { color: tickColor, font: { size: 11, family: 'Inter' }, stepSize: 1 },
                 },
             },
         }
@@ -222,12 +222,10 @@ function renderCacheStats(stats) {
     document.getElementById('hitRate').innerHTML = '<span class="tag tag-success">' + rate + '%</span>';
 }
 
-// Initial load
 loadAnalytics(7);
 
-// Auto-refresh every 30 seconds
 setInterval(function() {
-    var active = document.getElementById('btn30d').style.background.indexOf('primary') > -1 ? 30 : 7;
+    var active = document.getElementById('btn30d').className.indexOf('btn-primary') > -1 ? 30 : 7;
     loadAnalytics(active);
 }, 30000);
 </script>
